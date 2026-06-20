@@ -142,7 +142,12 @@
       <span class="goal-pill">🎯 108 Surya × 5 days/week by Dec 2026</span>
       <span class="notion-pill" id="notion-status">⚡ Connecting...</span>
     </div>
-    <button class="reset-btn" onclick="resetSetup()">Reset token</button>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
+      <button class="reset-btn" onclick="exportBackup()">⬇️ Export backup</button>
+      <button class="reset-btn" onclick="document.getElementById('restore-input').click()">⬆️ Restore backup</button>
+      <input type="file" id="restore-input" accept="application/json" style="display:none" onchange="restoreBackup(event)" />
+      <button class="reset-btn" onclick="resetSetup()">Reset token</button>
+    </div>
   </div>
 
   <div class="stats-grid">
@@ -230,6 +235,42 @@ let NOTION_TOKEN = '';
 let DATABASE_ID  = '';
 
 function saveLocal() { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+
+// ── BACKUP / RESTORE ──────────────────────────────────────────────────────
+// Note: only the habit log (STORAGE_KEY) is exported — never the Notion token (CONFIG_KEY).
+window.exportBackup = function() {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `pagewise-wellness-backup-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Backup downloaded ✅', 'success');
+};
+
+window.restoreBackup = function(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const restored = JSON.parse(e.target.result);
+      if (!confirm('This will overwrite your current data with the backup file. Continue?')) { event.target.value = ''; return; }
+      data = restored;
+      saveLocal();
+      render();
+      showToast('Backup restored ✅', 'success');
+    } catch (err) {
+      showToast('❌ Could not read backup file', 'fail');
+    }
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+};
 
 // ── SETUP ──────────────────────────────────────────────────────────────────
 window.saveSetup = function() {
