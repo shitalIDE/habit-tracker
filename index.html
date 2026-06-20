@@ -48,6 +48,7 @@
   .notion-pill { display: inline-block; margin-top: 8px; margin-left: 8px; font-size: 12px; padding: 3px 10px; border-radius: 20px; background: var(--surface2); color: var(--text2); }
   .notion-pill.synced { color: var(--green); }
   .notion-pill.error { color: var(--red); }
+  .notion-pill.offline { color: var(--text2); }
   .reset-btn { font-size: 11px; color: var(--text3); background: none; border: 0.5px solid var(--border2); border-radius: 20px; padding: 4px 10px; cursor: pointer; }
   .reset-btn:hover { color: var(--red); border-color: var(--red); }
 
@@ -128,6 +129,7 @@
     <input class="setup-input" type="text" id="db-input" placeholder="ae889a760584499590f1..." />
     <button class="setup-btn" onclick="saveSetup()">Connect to Notion →</button>
     <p class="setup-note">Token and Database ID are saved in your browser only. Never in the code.</p>
+    <p class="setup-note" style="margin-top:14px;"><a href="#" onclick="useOffline(); return false;" style="color:var(--text2)">Skip — track locally only, no Notion →</a></p>
   </div>
 </div>
 
@@ -146,7 +148,7 @@
       <button class="reset-btn" onclick="exportBackup()">⬇️ Export backup</button>
       <button class="reset-btn" onclick="document.getElementById('restore-input').click()">⬆️ Restore backup</button>
       <input type="file" id="restore-input" accept="application/json" style="display:none" onchange="restoreBackup(event)" />
-      <button class="reset-btn" onclick="resetSetup()">Reset token</button>
+      <button class="reset-btn" onclick="resetSetup()">Reset connection</button>
     </div>
   </div>
 
@@ -281,30 +283,40 @@ window.saveSetup = function() {
   localStorage.setItem(CONFIG_KEY, JSON.stringify({token, db}));
   NOTION_TOKEN = token;
   DATABASE_ID  = db;
-  showApp();
+  showApp(false);
+};
+
+window.useOffline = function() {
+  localStorage.setItem(CONFIG_KEY, JSON.stringify({ offline: true }));
+  showApp(true);
 };
 
 window.resetSetup = function() {
-  if (!confirm('Reset Notion connection? Your logged data stays safe.')) return;
+  if (!confirm('Reset connection settings? Your logged data stays safe.')) return;
   localStorage.removeItem(CONFIG_KEY);
   document.getElementById('setup-screen').style.display = 'flex';
   document.getElementById('main-app').style.display = 'none';
 };
 
-function showApp() {
+function showApp(offline) {
   document.getElementById('setup-screen').style.display = 'none';
   document.getElementById('main-app').style.display = 'block';
   render();
-  loadFromNotion();
+  if (offline) {
+    setNotionStatus('offline', '📵 Local only — no Notion sync');
+  } else {
+    loadFromNotion();
+  }
 }
 
 function checkConfig() {
   try {
     const c = localStorage.getItem(CONFIG_KEY);
     if (c) {
-      const {token, db} = JSON.parse(c);
-      NOTION_TOKEN = token; DATABASE_ID = db;
-      showApp(); return;
+      const cfg = JSON.parse(c);
+      if (cfg.offline) { showApp(true); return; }
+      NOTION_TOKEN = cfg.token; DATABASE_ID = cfg.db;
+      showApp(false); return;
     }
   } catch(e){}
   document.getElementById('setup-screen').style.display = 'flex';
